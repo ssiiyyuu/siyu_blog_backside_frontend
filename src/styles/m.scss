@@ -1,0 +1,51 @@
+.m-button {
+  display: inline-block;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #FFF;
+  border: 1px solid #DCDFE6;
+  color: #606266;
+  text-align: center;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  outline: 0;
+  margin: 0;
+  -webkit-transition: .1s;
+  transition: .1s;
+  font-weight: 500;
+  padding: 12px 20px;
+  font-size: 14px;
+  border-radius: 4px;
+  opacity: 1;
+}
+.m-button-mini {
+  padding: 7px 15px;
+  font-size: 12px;
+  border-radius: 3px;
+}
+.m-button:hover{
+  opacity: 0.8;
+}
+
+.m-button-primary {
+  color: #FFF;
+  background-color: #409EFF;
+  border-color: #409EFF;
+}
+.m-button-success {
+  color: #FFF;
+  background-color: #67C23A;
+  border-color: #67C23A;
+}
+.m-button-warn {
+  color: #FFF;
+  background-color: #E6A23C;
+  border-color: #E6A23C;
+}
+.m-button-danger {
+  color: #FFF;
+  background-color: #F56C6C;
+  border-color: #F56C6C;
+}
+

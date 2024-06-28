@@ -1,0 +1,124 @@
+<template>
+  <div :id="id" />
+</template>
+ 
+<script>
+import "codemirror/lib/codemirror.css";
+import "@toast-ui/editor/dist/toastui-editor.css";
+import '@toast-ui/editor/dist/i18n/zh-cn.js';
+ 
+// import Editor from 'tui-editor' 有markdown预览窗口问题
+import Editor from "@toast-ui/editor"; // 新版
+import defaultOptions from "./default-options";
+ 
+export default {
+  name: "MarkdownEditor",
+  props: {
+    value: {
+      type: String,
+      default: "",
+    },
+    id: {
+      type: String,
+      required: false,
+      default() {
+        return (
+          "markdown-editor-" + new Date() +
+          ((Math.random() * 1000).toFixed(0) + "")
+        );
+      },
+    },
+    options: {
+      type: Object,
+      default() {
+        return defaultOptions;
+      },
+    },
+    mode: {
+      type: String,
+      default: "markdown",
+    },
+    height: {
+      type: String,
+      required: false,
+      default: "300px",
+    },
+    language: {
+      type: String,
+      required: false,
+      default: "zh-CN",
+    },
+  },
+  data() {
+    return {
+      editor: null,
+    };
+  },
+  computed: {
+    editorOptions() {
+      const options = Object.assign({}, defaultOptions, this.options);
+      options.initialEditType = this.mode;
+      options.height = this.height;
+      options.language = this.language;
+      return options;
+    },
+  },
+  watch: {
+    value(newValue, preValue) {
+      if(newValue !== preValue && newValue !== this.getValue()) {
+        this.setValue(newValue)
+      }
+    },
+    language(val) {
+      this.destroyEditor();
+      this.initEditor();
+    },
+    height(newValue) {
+      this.editor.height(newValue);
+    },
+    mode(newValue) {
+      this.editor.changeMode(newValue);
+    }
+  },
+  mounted() {
+    this.initEditor();
+  },
+  destroyed() {
+    this.destroyEditor();
+  },
+  methods: {
+    initEditor() {
+      this.editor = new Editor({
+        el: document.getElementById(this.id),
+        ...this.editorOptions,
+      });
+      if (this.value) {
+        this.editor.setMarkdown(this.value);
+      }
+      // 子组件可以使用 $emit 触发父组件的自定义事件
+      // 为editor属性绑定change事件
+      this.editor.on("change", () => {
+        // 触发当前实例上的事件，获取编辑属性中的内容
+        this.$emit("input", this.editor.getMarkdown());
+      });
+    },
+    destroyEditor() {
+      if (!this.editor) return;
+      this.editor.off("change");
+      this.editor.remove();
+    },
+    setValue(value) {
+      this.editor.setMarkdown(value);
+    },
+    getValue() {
+      return this.editor.getMarkdown();
+    },
+    setHtml(value) {
+      this.editor.setHtml(value);
+    },
+    getHtml() {
+      return this.editor.getHtml();
+    },
+  },
+};
+</script>

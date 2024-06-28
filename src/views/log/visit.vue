@@ -1,0 +1,273 @@
+<template>
+  <div id="app-container" style="padding: 0 15px;">
+    
+    <!--query-->
+    <el-form class="query" :inline="true" :model="query_input">
+      <el-form-item label="UUID">
+        <el-input clearable v-model="query_input.uuid" placeholder="UUID"></el-input>
+      </el-form-item>
+      <el-form-item label="起止日期">
+        <el-date-picker
+        style="width: 380px;"
+          v-model="query_input.date"
+          type="datetimerange"
+          :picker-options="pickerOptions"
+          value-format="yyyy-MM-dd HH:mm:ss"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          align="right">
+        </el-date-picker>
+      </el-form-item>
+      <el-form-item>
+        <div class="m-button m-button-primary" @click="submitQueryForm">查询</div>
+        <div class="m-button m-button-danger"  @click="clearQueryForm" style="margin-left: 10px;">重置</div>
+      </el-form-item>
+    </el-form>
+
+    <!--tool-->
+    <div class="tool">
+      <el-button @click="getExcel" type="warning" size="mini" icon="el-icon-download" style="margin-left: 5px;">导出</el-button>
+    </div>
+
+    <!--table-->
+    <el-table
+      class="table"
+      :data="records"
+      border
+      v-loading="loading"
+      style="margin-top: 30px;"
+    >
+      <el-table-column type="expand">
+          <template slot-scope="scope">
+            <el-form label-position="left" inline class="expand-info">
+              <el-form-item label="请求接口">
+                <span>{{ scope.row.uri }}</span>
+              </el-form-item>
+              <el-form-item label="请求参数">
+                <span>{{ scope.row.params }}</span>
+              </el-form-item>
+            </el-form>
+          </template>
+        </el-table-column>
+      <el-table-column label="序号">
+        <template slot-scope="scope">
+          {{ (page - 1) * size + scope.$index + 1 }}
+        </template>
+      </el-table-column>
+      <el-table-column width="300" prop="uuid" label="UUID">
+        <template slot-scope="scope">
+          <span class="link" @click="queryUUID(scope.row.uuid)">{{ scope.row.uuid }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="method" label="请求方法"/> 
+      <el-table-column prop="behavior" label="行为"/>
+      <el-table-column prop="content" label="内容"/>
+      <el-table-column prop="gmtCreate" label="访问时间"/>
+    </el-table>
+
+    <!--pagination-->
+    <el-pagination
+      class="pagination"
+      @current-change="currnetChange"
+      @size-change="sizeChange"
+      :current-page="page"
+      :page-sizes="[10, 20, 30, 40, 50, 100]"
+      :page-size="size"
+      layout="total, sizes, prev, pager, next, jumper"
+      :total="total"
+    >
+    </el-pagination>
+  </div>
+</template>
+<script>
+import { download, types } from "@/utils/download";
+import { getVisitorLogList, getVisitorLogListByQuery, getExcelV} from "@/api/log";
+export default {
+  name: 'visit',
+  components: {
+  },
+  data() {
+    return {
+      page: 1,
+      size: 10,
+      total: 10,
+      loading: true,
+      mode: false,
+      query_input: {
+        date: [],
+      },
+      query: {
+        begin: '',
+        end: '',
+      },
+      records: [],
+      //时间选择器配置
+      pickerOptions: {
+        shortcuts: [{
+          text: '最近一周',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+            picker.$emit('pick', [start, end]);
+          }
+        }, {
+          text: '最近一个月',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+            picker.$emit('pick', [start, end]);
+          }
+        }, {
+          text: '最近三个月',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+            picker.$emit('pick', [start, end]);
+          }
+        }]
+      },
+    }
+  },
+  methods: {
+    // query form 只有点击查找按钮后才会更新query
+    submitQueryForm() {
+      if(this.query_input == undefined || this.query_input == null) {
+        return
+      }
+      if((this.query_input.date == undefined || this.query_input.date == '') &&
+         (this.query_input.uuid == undefined || this.query_input.uuid == '')) {
+        return
+      }
+      this.query.begin = this.query_input.date[0]
+      this.query.end = this.query_input.date[1]
+      this.query.uuid = this.query_input.uuid
+      this.mode = true
+      this.getVisitorLogListByQuery(this.query, 1, this.size)
+    },
+    clearQueryForm() {
+      this.query = {
+        begin: '',
+        end: '',
+        uuid: '',
+      }
+      this.query_input = {
+        date: [],
+        uuid: '',
+      }
+      if(this.mode) { //如果已查询
+        this.mode = false
+        this.getVisitorLogList(1, this.size)
+      }
+    },
+    queryUUID(uuid) {
+      this.query_input.uuid = uuid
+      this.submitQueryForm()
+    },
+    // pagination
+    currnetChange(page) {
+      if(this.mode) {
+        this.getVisitorLogListByQuery(this.query, page, this.size)
+      } else {
+        this.getVisitorLogList(page, this.size)
+      }
+    },
+    sizeChange(size) {
+      if(this.mode) {
+        this.getVisitorLogListByQuery(this.query, 1, size)
+      } else {
+        this.getVisitorLogList(1, size)
+      }
+    },
+    
+    getVisitorLogList(pageNum, pageSize) {
+      this.loading = true
+      getVisitorLogList(pageNum, pageSize).then(res => {
+        this.loading = false
+        let data = res.data
+        this.records = data.records
+        this.page = data.curPage
+        this.total = data.total
+        this.size = data.size
+      })
+    },
+
+    getVisitorLogListByQuery(query, pageNum, pageSize) {
+      this.loading = true
+      getVisitorLogListByQuery(query, pageNum, pageSize).then(res => {
+        this.loading = false
+        let data = res.data
+        this.records = data.records
+        this.page = data.curPage
+        this.total = data.total
+        this.size = data.size
+      })
+    },
+    getExcel() {
+      this.$confirm("此请求可能消耗大量时间, 是否继续?", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        getExcelV().then(res => {
+          download(res.data, types.xlsx, "访客日志")
+        })
+      })
+    }
+  },
+  created() {
+    this.getVisitorLogList(1, this.size)
+  }
+}
+</script>
+<style scoped>
+@import "~@/styles/m.scss";
+.query {
+  margin-top: 25px;
+}
+.query.el-form .el-form-item {
+  padding: 0 2.5px;
+}
+.query.el-form .el-input {
+  width: 320px;
+}
+.query.el-form .el-select {
+  width: 140px;
+}
+/* pagination */
+.pagination {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+.vue-image-crop-upload >>> .vicp-wrap {
+  width: 520px;
+}
+::v-deep .el-input__inner{
+  cursor: pointer;
+}
+::v-deep .el-range-input{
+  cursor: pointer;
+}
+.link {
+  cursor: pointer;
+  color: #409EFF;
+  opacity: 0.8;
+}
+.link:hover{
+  opacity: 1;
+}
+.expand-info label {
+  width: 90px;
+  color: #99a9bf;
+}
+.expand-info .el-form-item {
+  display: block;
+  margin-left: 10px;
+}
+.expand-info .el-form-item span{
+  font-size: 12px;
+}
+</style>
